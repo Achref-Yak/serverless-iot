@@ -1,0 +1,105 @@
+org: acref55
+app: iotserverless
+service: iotserverless
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs16.x
+
+
+  iam:
+    role:
+      statements:
+        - Effect: "Allow"
+          Action:
+            - iam:*
+            - iot:*
+            - dynamodb:*
+          Resource: "*"
+
+package:
+  exclude:
+#    - node_modules/**
+
+
+
+resources: # CloudFormation template syntax from here on.
+	
+      Resources:
+	
+        usersTable:
+	
+          Type: AWS::DynamoDB::Table
+	
+          Properties:
+	
+            TableName: usersTable
+	
+            AttributeDefinitions:
+	
+              - AttributeName: email
+	
+                AttributeType: S
+	
+            KeySchema:
+	
+              - AttributeName: email
+	
+                KeyType: HASH
+	
+            ProvisionedThroughput:
+	
+              ReadCapacityUnits: 1
+	
+              WriteCapacityUnits: 1
+              
+functions:
+  localGreeting:
+    handler: src/handlers/testhandler.endpoint
+    events:
+      - http:
+          path: /greet
+          method: get
+
+  things:
+    events:
+      - http:
+          path: thing
+          method: post
+	
+    handler: src/handlers/things/things.create
+    middleware:
+      pre:
+        - src/handlers/Auth/auth.authorize
+
+  signup:    
+    name: signup
+    handler: src/handlers/Auth/auth.emailSignup    
+    
+    events:
+      - http:
+          path: /signup
+          method: post
+  login:    
+    name: login
+    handler: src/handlers/Auth/auth.login    
+    
+    events:
+      - http:
+          path: /login
+          method: post
+          cors:
+	
+            origin: '*'
+	
+            headers:
+	
+              - Content-Type
+	
+
+
+plugins:
+ - serverless-offline
+ - serverless-middleware
