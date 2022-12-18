@@ -7,6 +7,9 @@ frameworkVersion: '3'
 provider:
   name: aws
   runtime: nodejs16.x
+  environment:
+    REGION: ${env:REGION}
+    ACCOUNT: ${env:ACCOUNT}
 
 
   iam:
@@ -17,18 +20,30 @@ provider:
             - iam:*
             - iot:*
             - dynamodb:*
+            - sqs:*
+            - sts:AssumeRole
           Resource: "*"
 
 package:
   exclude:
 #    - node_modules/**
 
-
+useDotenv: true
 
 resources: # CloudFormation template syntax from here on.
 	
       Resources:
-	
+        IotRole:
+          Type: AWS::IAM::Role
+          Properties:
+            AssumeRolePolicyDocument:
+              Statement:
+              - Effect: Allow
+                Principal:
+                  Service:
+                    - iot.amazonaws.com
+                Action:
+                - sts:AssumeRole
         usersTable:
 	
           Type: AWS::DynamoDB::Table
@@ -103,3 +118,4 @@ functions:
 plugins:
  - serverless-offline
  - serverless-middleware
+ - serverless-dotenv-plugin

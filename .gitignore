@@ -30,7 +30,8 @@ node_modules
 
 #IDE Stuff
 **/.idea
-
+VSWorkspaceState.json
+.vscode
 #OS STUFF
 .DS_Store
 .tmp
