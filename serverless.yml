@@ -4,6 +4,18 @@ service: iotserverless
 
 frameworkVersion: '3'
 
+
+custom:
+  WebsocketsApiEndpoint:
+    Fn::Join:
+      - ''
+      - - 'https://'
+        - Ref: WebsocketsApi
+        - .execute-api.
+        - Ref: AWS::Region
+        - .amazonaws.com/
+        - dev
+      
 provider:
   name: aws
   runtime: nodejs16.x
@@ -11,7 +23,12 @@ provider:
     REGION: ${env:REGION}
     ACCOUNT: ${env:ACCOUNT}
 
+  websocketsApiName: custom-websockets-api-name
+  websocketsApiRouteSelectionExpression: $request.body.action # custom routes are selected by the value of the action property in the body
+  websocketsDescription: Custom Serverless Websockets	
 
+
+      
   iam:
     role:
       statements:
@@ -20,9 +37,13 @@ provider:
             - iam:*
             - iot:*
             - dynamodb:*
+            - lambda:*
             - sqs:*
             - sts:AssumeRole
           Resource: "*"
+          
+ 
+
 
 package:
   exclude:
@@ -31,8 +52,54 @@ package:
 useDotenv: true
 
 resources: # CloudFormation template syntax from here on.
-	
-      Resources:
+
+      Resources: 
+
+  
+ 
+        MyWBTopicRule:
+          Type: AWS::IoT::TopicRule
+          Properties:
+            RuleName: myWbTopicRule
+            TopicRulePayload:
+              Sql: "SELECT * FROM 'my/topic'"
+              Actions:
+                - Lambda:
+                    FunctionArn: !Sub "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:iotserverless-dev-redirectData"
+                    
+        mysqsqueue2:
+          Type: AWS::SQS::Queue
+          Properties:
+                # Set the properties for your SQS queue here
+                # For example:
+                QueueName: mysqsqueue2
+                VisibilityTimeout: 60
+
+    
+    
+        MySQSRole:
+          Type: AWS::IAM::Role
+          Properties:
+            AssumeRolePolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Principal:
+                    Service:
+                      - iot.amazonaws.com
+                  Action:
+                    - sts:AssumeRole
+
+            Policies:
+              - PolicyName: SQSAccess
+                PolicyDocument:
+                  Version: "2012-10-17"
+                  Statement:
+                    - Effect: Allow
+                      Action:
+                        - sqs:*
+                      Resource: "*"
+
         IotRole:
           Type: AWS::IAM::Role
           Properties:
@@ -44,6 +111,20 @@ resources: # CloudFormation template syntax from here on.
                     - iot.amazonaws.com
                 Action:
                 - sts:AssumeRole
+              
+
+        MyIoTRule:
+          Type: AWS::IoT::TopicRule
+          Properties:
+            RuleName: testRule5
+            TopicRulePayload:
+              Actions:
+                - Sqs:
+                    QueueUrl: arn:aws:iot:${env.REGION}:${env.ACCOUNT}:sqs/mysqsqueue2
+                    RoleArn: !GetAtt MySQSRole.Arn
+              RuleDisabled: false
+              Sql: "SELECT * FROM 'iot/testTopic'"
+
         usersTable:
 	
           Type: AWS::DynamoDB::Table
@@ -69,16 +150,67 @@ resources: # CloudFormation template syntax from here on.
               ReadCapacityUnits: 1
 	
               WriteCapacityUnits: 1
+
+        connectionsTable:
+	
+          Type: AWS::DynamoDB::Table
+	
+          Properties:
+	
+            TableName: connectionsTable
+	
+            AttributeDefinitions:
+              
+              - AttributeName: thingName
+  
+                AttributeType: S
+	
+            KeySchema:
+	
+              - AttributeName: thingName
+	
+                KeyType: HASH
+	
+            ProvisionedThroughput:
+	
+              ReadCapacityUnits: 1
+	
+              WriteCapacityUnits: 1
               
 functions:
-  localGreeting:
-    handler: src/handlers/testhandler.endpoint
-    events:
-      - http:
-          path: /greet
-          method: get
 
-  things:
+  redirectData:
+    handler: src/handlers/redirectData.defaultHandler
+    events:
+       - iot:
+          sql: "SELECT * FROM 'my/topic'"
+
+ 
+  sendWBMessage:
+    handler: src/handlers/message.defaultHandler
+    events:
+      - websocket:
+          route: $connect
+      - websocket:
+          route: $disconnect
+      - websocket:  #simple event definition without extra route property
+          route: $default
+
+
+  orderSensorData:
+    handler: src/handlers/order.orderByDate
+    name: orderSensorData # optional, Deployed Lambda name
+    description: "Order sensor data" # optional
+    memorySize: 128 # optional, in MB, default is 1024
+    timeout: 10 # optional, in seconds, default is 6$
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - mysqsqueue2
+              - Arn
+  
+  thingscreate:
     events:
       - http:
           path: thing
@@ -88,6 +220,52 @@ functions:
     middleware:
       pre:
         - src/handlers/Auth/auth.authorize
+  thingslist:
+    events:
+      - http:
+          path: thing
+          method: get
+          cors: true
+  
+    handler: src/handlers/things/things.getAllThings
+    middleware:
+      pre:
+        - src/handlers/Auth/auth.authorize
+  updateThing:
+    events:
+      - http:
+          path: thing/{thingName}
+          method: put
+    
+    handler: src/handlers/things/things.updateThing
+  
+  getSensorDataByThing:
+    events:
+      - http:
+          path: thing/{thingName}/sensor
+          method: get
+          cors: true
+          request: 
+            parameters: 
+              paths: 
+                thingName: true
+
+    
+    handler: src/handlers/things/things.getSensorDataByThing
+
+  getSensorBinaryDataByThing:
+    events:
+      - http:
+          path: thing/{thingName}/binary
+          method: get
+          cors: true
+          request: 
+            parameters: 
+              paths: 
+                thingName: true
+
+    
+    handler: src/handlers/things/things.getSensorBinaryDataByThing
 
   signup:    
     name: signup
@@ -105,13 +283,7 @@ functions:
       - http:
           path: /login
           method: post
-          cors:
-	
-            origin: '*'
-	
-            headers:
-	
-              - Content-Type
+          cors: true
 	
 
 
@@ -119,3 +291,4 @@ plugins:
  - serverless-offline
  - serverless-middleware
  - serverless-dotenv-plugin
+

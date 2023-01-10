@@ -10,7 +10,12 @@ const UserService = require('../../repository/userService');
 
 
 exports.authenticate = async (event) => {
+  // check jwt token from header and return user data
+  const { authorization } = event.headers;
+  const token = authorization.split(' ')[1];
 
+  const user = await new UserService().authenticate(token);
+  
 
 
 
@@ -48,6 +53,7 @@ exports.login = async (event) => {
 
 
 exports.emailSignup =  async (event) => {
+  console.log(event);
 
-  await new userService().signUp(event);
+  await new UserService().signUp(event.body);
 };

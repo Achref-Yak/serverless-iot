@@ -19,7 +19,8 @@
     "jest": "^29.3.1",
     "serverless-dotenv-plugin": "^4.0.2",
     "serverless-middleware": "^3.1.0",
-    "serverless-offline": "^12.0.1"
+    "serverless-offline": "^12.0.1",
+    "serverless-websockets-plugin": "^1.0.0"
   },
   "scripts": {
     "test": "jest"

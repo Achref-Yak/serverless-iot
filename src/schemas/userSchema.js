@@ -6,11 +6,6 @@ module.exports = new dynamoose.Schema({
 
         required: false
     },
-    Username: {
-        type: String,
-        rangeKey: true,
-        required: false
-    },
     email: {
         type: String,
         required: true,
@@ -36,4 +31,3 @@ module.exports = new dynamoose.Schema({
     },
 });
 
- 

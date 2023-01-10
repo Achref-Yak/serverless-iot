@@ -1,27 +1,24 @@
 const dynamoose = require("dynamoose");
 
 module.exports = new dynamoose.Schema({
-    id: {
+
+    connectionId: {
+        type: String,
+        required: false
+    },
+
+    thingName: {
         type: String,
         hashKey: true,
         required: false
     },
-    thingName: {
-        type: String,
-
-        required: false
-    },
     timestamp: {
-        type: String,
-        required: false
-    },
-
-
-    gaz: {
-        type: String,
+        type: Date,
         required: false,
- 
+        default: Date.now
     },
+
+ 
 
 });
 

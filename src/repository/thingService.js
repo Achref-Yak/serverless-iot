@@ -1,7 +1,8 @@
 const dynamoose = require("dynamoose");
-const UserSchema = require('../schemas/userSchema');
 const bcrypt = require('bcryptjs');
 const logger = require('../utils/logger')
+const StackPro = require("../handlers/thingStacks/stackPro");
+
 const { v1: uuidv1 } = require('uuid');
 const Aws = require('aws-sdk');
 const Iot = new Aws.Iot();
@@ -18,18 +19,18 @@ require('dotenv').config({ path: path.resolve(__dirname, '../../.env') })
 
 
 class ThingService {
-  tableName = 'usersTable';
+  tableName = 'testTable';
   thingName = 'testThing';
   thingTopic = 'testTopic';
   dbInstance;
   constructor() {
-
-    this.dbInstance = dynamoose.model(this.tableName, UserSchema);
+    console.log(this.tableName);
+    this.dbInstance = dynamoose.model(this.tableName, ThingSchema);
   }
 
   createGroup() {
     const params = {
-      thingGroupName: "testGroup",
+      thingGroupName: "testGroup2",
 
     }
     return Iot.createThingGroup( params ).promise()
@@ -69,7 +70,7 @@ class ThingService {
 
     var policyParams = {
       policyDocument: JSON.stringify(myManagedPolicy),
-      policyName: 'iotGroupPolicy7',
+      policyName: 'iotGroupPolicy2x',
     };
 
    return Iot.createPolicy(policyParams).promise().then( data => {
@@ -90,9 +91,9 @@ class ThingService {
 
 
 
-  createThingsInGroup(group, policyName){
+  createThingsInGroup(thing, group, policyName){
     console.log(policyName);
-    const name = "testThing-"+ uuidv1();
+    const name = thing.name+ uuidv1();
     const params = {
       thingName: name
     }
@@ -133,8 +134,14 @@ class ThingService {
  
 
   createStack(){
+      
+    this.createSQSQueue().then( data => {
+      console.log("queue created");
+ 
+      }).catch(err => {
+        console.log("queue aa");
+      })
 
-  
     return this.createGroup().then(
 
       group => {
@@ -142,15 +149,17 @@ class ThingService {
 
         this.createPolicy(group).then( data => {
           console.log("policy created");
-          for (let index = 0; index < 3; index++) {
-            this.createThingsInGroup(group, data).then( data => {
+            StackPro.forEach(thing => {
+        
+            this.createThingsInGroup(thing, group, data).then( data => {
         
                 console.log("attached thing to group");
             }).catch(err => {
               logger.error(err); 
             });
             
-          }
+          });
+     
         }).catch(err => {
           logger.error(err);
         })
@@ -168,6 +177,43 @@ class ThingService {
 
 
   }
+
+  updateThing(thingName) {
+   
+          return Iot.updateThing({thingName: thingName, attributePayload: {attributes: {certificate: cert.certificateId}}}).promise().then( data => {
+            console.log("thing updated");
+            return cert;
+          }).catch(err => {
+            logger.error(err); 
+          })
+  
+  }
+
+  updateCertificate(thing) {
+    return Iot.createKeysAndCertificate({setAsActive: true}).promise().then(cert => {
+      console.log("cert created");
+      console.log(cert.certificatePem);
+      console.log(cert.keyPair.PrivateKey);
+      return Iot.attachThingPrincipal({thingName: thing.thingName, principal: cert.certificateArn}).promise().then( data => {
+        console.log("thing attached to cert");
+      }).catch(err => {
+        logger.error(err);
+      })
+     
+  }).catch(err => logger.error(err))
+  }
+
+  getSensorDataByThing(thingName) {
+
+
+    return this.dbInstance.scan({thingName: thingName}).limit(7).exec();
+  }
+
+
+  getAllThings() {
+    return Iot.listThings().promise();
+  }
+  
 
 
   createRule() {
@@ -207,7 +253,7 @@ class ThingService {
         actions: [
           {
             sqs: {
-              queueUrl: 'https://sqs.us-east-1.amazonaws.com/766779933142/testQueue',
+              queueUrl: 'https://sqs.us-east-1.amazonaws.com/766779933142/mysqsqueue2',
               roleArn: 'arn:aws:iam::766779933142:role/iotserverless-dev-IotRole-N2ABXEYT02YN',
               useBase64: true
             }
