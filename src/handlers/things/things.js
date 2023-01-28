@@ -34,6 +34,8 @@ exports.getSensorDataByThing = async (event) => {
     })
 };
 
+ 
+
 
 exports.updateThing = async (event) => {
     // get event path parameters into a const 

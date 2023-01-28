@@ -128,7 +128,7 @@ module.exports = class UserService {
     async signUp (data) {
 
 
-     this.dbInstance.get({email: data.email}).then((user) => {
+     return this.dbInstance.get({email: data.email}).then((user) => {
 
         if (user) {
           // logger.error('User already exists');

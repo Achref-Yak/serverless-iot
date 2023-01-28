@@ -55,5 +55,9 @@ exports.login = async (event) => {
 exports.emailSignup =  async (event) => {
   console.log(event);
 
-  await new UserService().signUp(event.body);
+  return await new UserService().signUp(event.body).then((user) => {
+    return new AppSuccess(user, 200).handleSuccess();
+  }).catch((err) => {
+    return new AppError(err, 400).handleCastErrorDB();
+  });
 };

@@ -1,5 +1,8 @@
 const dynamoose = require("dynamoose");
 
+
+
+
 module.exports = new dynamoose.Schema({
     id: {
         type: String,
@@ -16,11 +19,33 @@ module.exports = new dynamoose.Schema({
         required: false
     },
 
+    on: {
+        type: Number,
+    },
+    sensitivity: {
+        type: Number,
+    },
+    threshold: {
+        type: Number,
+    },
+
+
+    analogSensorData: {
+        type: Object,
+        schema: {
+            temperature: {
+                type: Number,
+            },
+            humidity: {
+                type: Number,
+            },
+        },
+    },
 
     gaz: {
         type: String,
         required: false,
- 
+
     },
 
 });

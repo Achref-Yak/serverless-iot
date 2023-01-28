@@ -1,6 +1,9 @@
 {
-    "id": "1",
+    "id": "3",
     "thingName": "myThing",
     "gaz": "21",
-    "timestamp": "2023-12-28 00:00:00"
+    "timestamp": "2023-12-28 00:00:00",
+    "analogSensorData": {
+        "temperature": 21
+    }
 }
